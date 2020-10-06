@@ -39,6 +39,7 @@ Subcommands::
      status                        Get status of host
      stop                          Power a host off
      subscription                  Manage subscription information on your hosts
+     traces                        List traces on your hosts
      update                        Update a host
 
 """
@@ -461,6 +462,40 @@ class Host(Base):
             --search SEARCH               filter results
         """
         cls.command_sub = 'sc-params'
+        return cls.execute(cls._construct_command(options), output_format='csv')
+
+    @classmethod
+    def traces_list(cls, options=None):
+        """List services that need restarting on the host
+        Usage:
+            hammer host traces list [OPTIONS]
+
+        Options:
+         --host[-id]                   Set the current host context for the request.
+                                       Name/Id can be used
+         -h, --help                    Print help
+        """
+        cls.command_sub = 'traces list'
+        return cls.execute(cls._construct_command(options), output_format='csv')
+
+    @classmethod
+    def traces_resolve(cls, options=None):
+        """
+        Resolve Traces
+        Usage:
+            hammer host traces resolve [OPTIONS]
+
+        Options:
+         --async                       Do not wait for the task
+         --host[-id]                   Set the current host context for the request.
+                                       Name/Id can be used
+         --trace-ids TRACE_IDS         Array of Trace Ids
+                                       Comma separated list of values. Values containing comma
+                                       should be quoted or escaped with backslash. JSON is
+                                       acceptable and preferred way for complex parameters
+         -h, --help                    Print help
+        """
+        cls.command_sub = 'traces resolve'
         return cls.execute(cls._construct_command(options), output_format='csv')
 
 
