@@ -48,14 +48,13 @@ def test_rhel_pxe_provisioning_on_libvirt():
 
 
 # @pytest.mark.on_premises_provisioning
-@pytest.mark.tier3
 def test_rhel_pxe_provisioning_on_rhv(
     default_sat,
     module_manifest_org,
     module_location,
     default_architecture,
     default_partitiontable,
-    rhel7_contenthost,
+    # rhel7_contenthost,
 ):
     """Provision RHEL system via PXE on RHV and make sure it behaves
 
@@ -104,29 +103,31 @@ def test_rhel_pxe_provisioning_on_rhv(
     provisioning_upstream_dns_secondary = (
         provisioning_upstream_dns.pop() if len(provisioning_upstream_dns) else None
     )
-
+    default_sat.name = "ogajduse-sat-jenkins-6.10.2-2.0-44ec4134"
     # run add-configure-vlan-interface on the Satellite host
-    VMBroker.execute(
-        workflow="add-configure-vlan-iface",
-        target_vlan_id=provisioning_network_vlan_id,
-        target_host=default_sat.name,
-    )
+    # VMBroker().execute(
+    #     workflow="add-configure-vlan-iface",
+    #     target_vlan_id=provisioning_network_vlan_id,
+    #     target_host=default_sat.name,
+    # )
 
     # run configure-provisioning-ifaces-rhv on Satellite host
     # TODO: JT should accept variables like from_ip, to_ip and do not assume them
-    VMBroker.execute(
-        job_template="configure-provisioning-ifaces-rhv",
-        provisioning_dns_zone=provisioning_domain_name,
-        provisioning_iface=provisioning_interface,
-        activation_key=provisioning_activation_key,
-        provisioning_addr_ipv4=provisioning_addr_ipv4,
-        provisioning_gw_ipv4=provisioning_gw_ipv4,
-        target_host=default_sat.name,
-    )
+    # VMBroker().execute(
+    #     job_template="configure-provisioning-ifaces-rhv",
+    #     provisioning_dns_zone=provisioning_domain_name,
+    #     provisioning_iface=provisioning_interface,
+    #     activation_key=provisioning_activation_key,
+    #     provisioning_addr_ipv4=provisioning_addr_ipv4,
+    #     provisioning_gw_ipv4=provisioning_gw_ipv4,
+    #     target_host=default_sat.name,
+    # )
 
     provisioning_capsule = default_sat.api.SmartProxy().search(
         query={'search': f'name={default_sat.hostname}'}
     )[0].read()
+    provisioning_capsule.location.append(module_location)
+    provisioning_capsule.update(fields=['location'])  # read?
     
     domain = default_sat.api.Domain(
         location=[module_location],
@@ -146,6 +147,7 @@ def test_rhel_pxe_provisioning_on_rhv(
         dns_primary=provisioning_upstream_dns_primary,
         dns_secondary=provisioning_upstream_dns_secondary,
         boot_mode="DHCP",
+        ipam="DHCP",
         dhcp=provisioning_capsule.id,
         tftp=provisioning_capsule.id,
         template=provisioning_capsule.id,
@@ -187,7 +189,6 @@ def test_rhel_pxe_provisioning_on_rhv(
         .search()[0]
         .read()
     )
-    # TODO: publish/promote CV?
 
     hostgroup = default_sat.api.HostGroup(
         organization=[module_manifest_org],
@@ -211,17 +212,36 @@ def test_rhel_pxe_provisioning_on_rhv(
     # TODO: add fdi to base template
     # ----- END OF SAT FIXTURE -----
 
-    # run add-configure-vlan-interface on the host-to-be-provisioned
-    VMBroker.execute(
-        workflow="add-configure-vlan-iface",
-        target_vlan_id=provisioning_network_vlan_id,
-        target_host=rhel7_contenthost.name,
-    )
+    # # run add-configure-vlan-interface on the host-to-be-provisioned
+    # VMBroker().execute(
+    #     workflow="add-configure-vlan-iface",
+    #     target_vlan_id=provisioning_network_vlan_id,
+    #     target_host=rhel7_contenthost.name,
+    # )
 
-    # run configure-pxe-boot-rhv on the host-to-be-provisioned
-    VMBroker.execute(
-        job_template="configure-pxe-boot-rhv",
-        target_host=rhel7_contenthost.name,
-        target_vlan_id=provisioning_network_vlan_id,
-        pxeloader=provisioning_pxeloader,
-    )
+    # # run configure-pxe-boot-rhv on the host-to-be-provisioned
+    # VMBroker().execute(
+    #     job_template="configure-pxe-boot-rhv",
+    #     target_host=rhel7_contenthost.name,
+    #     target_vlan_id=provisioning_network_vlan_id,
+    #     pxeloader=provisioning_pxeloader,
+    # )
+
+    from robottelo.hosts import ContentHost
+    rhel7_contenthost = ContentHost(hostname="dhcp-2-235.vms.sat.rdu2.redhat.com", username="root", password="dog8code")
+    contenthost_mac_addr = rhel7_contenthost.execute("cat /sys/class/net/eth1/address").stdout.splitlines()[0]
+
+    host = default_sat.api.Host(
+        hostgroup=hostgroup,
+        organization=module_manifest_org,
+        location=module_location,
+        content_facet_attributes={'content_view_id': cv.id, 'lifecycle_environment_id': lce.id},
+        name=gen_string('alpha'),
+        mac=contenthost_mac_addr,
+        operatingsystem=os,
+        subnet=subnet,
+        ip="10.1.5.91"
+    ).create(create_missing=False)
+    pass
+
+    pass
