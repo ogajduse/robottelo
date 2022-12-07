@@ -1,6 +1,7 @@
 # Version updates managed by dependabot
 
-broker[docker]==0.2.9
+#broker[docker]==0.2.9
+git+https://github.com/JacobCallahan/broker.git@optimizations#egg=broker[docker]
 cryptography==38.0.4
 deepdiff==6.2.1
 dynaconf[vault]==3.1.11
