@@ -34,11 +34,15 @@ def module_stash(request):
     yield request.node.stash
 
 
+RHEL7_VER = '7.9'
+RHEL8_VER = '8.8'
+RHEL9_VER = '9.2'
+
 RHEL_REPOS = {
-    'rhel7_9_server': {
+    'rhel7_server': {
         'id': 'rhel-7-server-rpms',
-        'name': 'Red Hat Enterprise Linux 7 Server RPMs x86_64 7.9',
-        'releasever': '7.9',
+        'name': f'Red Hat Enterprise Linux 7 Server RPMs x86_64 {RHEL7_VER}',
+        'releasever': RHEL7_VER,
         'reposet': 'Red Hat Enterprise Linux 7 Server (RPMs)',
         'product': 'Red Hat Enterprise Linux Server',
     },
@@ -49,28 +53,28 @@ RHEL_REPOS = {
         'reposet': 'Red Hat Enterprise Linux 7 Server - Extras (RPMs)',
         'product': 'Red Hat Enterprise Linux Server',
     },
-    'rhel8_8_bos': {
+    'rhel8_bos': {
         'id': 'rhel-8-for-x86_64-baseos-rpms',
-        'name': 'Red Hat Enterprise Linux 8 for x86_64 - BaseOS RPMs 8.8',
-        'releasever': '8.8',
+        'name': f'Red Hat Enterprise Linux 8 for x86_64 - BaseOS RPMs {RHEL8_VER}',
+        'releasever': RHEL8_VER,
         'reposet': 'Red Hat Enterprise Linux 8 for x86_64 - BaseOS (RPMs)',
     },
-    'rhel8_8_aps': {
+    'rhel8_aps': {
         'id': 'rhel-8-for-x86_64-appstream-rpms',
-        'name': 'Red Hat Enterprise Linux 8 for x86_64 - AppStream RPMs 8.8',
-        'releasever': '8.8',
+        'name': f'Red Hat Enterprise Linux 8 for x86_64 - AppStream RPMs {RHEL8_VER}',
+        'releasever': RHEL8_VER,
         'reposet': 'Red Hat Enterprise Linux 8 for x86_64 - AppStream (RPMs)',
     },
-    'rhel9_2_bos': {
+    'rhel9_bos': {
         'id': 'rhel-9-for-x86_64-baseos-rpms',
-        'name': 'Red Hat Enterprise Linux 9 for x86_64 - BaseOS RPMs 9.2',
-        'releasever': '9.2',
+        'name': f'Red Hat Enterprise Linux 9 for x86_64 - BaseOS RPMs {RHEL9_VER}',
+        'releasever': RHEL9_VER,
         'reposet': 'Red Hat Enterprise Linux 9 for x86_64 - BaseOS (RPMs)',
     },
-    'rhel9_2_aps': {
+    'rhel9_aps': {
         'id': 'rhel-9-for-x86_64-appstream-rpms',
-        'name': 'Red Hat Enterprise Linux 9 for x86_64 - AppStream RPMs 9.2',
-        'releasever': '9.2',
+        'name': f'Red Hat Enterprise Linux 9 for x86_64 - AppStream RPMs {RHEL9_VER}',
+        'releasever': RHEL9_VER,
         'reposet': 'Red Hat Enterprise Linux 9 for x86_64 - AppStream (RPMs)',
     },
 }
@@ -180,8 +184,8 @@ def custom_leapp_host(upgrade_path):
 @pytest.mark.parametrize(
     'upgrade_path',
     [
-        {'source_version': '7.9', 'target_version': '8.8'},
-        {'source_version': '8.8', 'target_version': '9.2'},
+        {'source_version': RHEL7_VER, 'target_version': RHEL8_VER},
+        {'source_version': RHEL8_VER, 'target_version': RHEL9_VER},
     ],
     ids=lambda upgrade_path: f'{upgrade_path["source_version"]}_to_{upgrade_path["target_version"]}',
 )
