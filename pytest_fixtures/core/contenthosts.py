@@ -258,9 +258,12 @@ def external_puppet_server(request):
 
 @pytest.fixture(scope="module")
 def sat_upgrade_chost():
-    """A module-level fixture that provides a UBI_8 content host for upgrade scenario testing"""
+    """A module-level fixture that provides a UBI content host for upgrade scenario testing"""
     return Broker(
-        container_host=settings.content_host.rhel8.container.container_host, host_class=ContentHost
+        container_host=settings.content_host.get(
+            f'rhel{settings.content_host.default_rhel_version}'
+        ).container.container_host,
+        host_class=ContentHost,
     ).checkout()
 
 
@@ -268,8 +271,12 @@ def sat_upgrade_chost():
 def custom_host(request):
     """A rhel content host that passes custom host config through request.param"""
     deploy_args = request.param
-    # if 'deploy_rhel_version' is not set, let's default to RHEL 8
-    deploy_args['deploy_rhel_version'] = deploy_args.get('deploy_rhel_version', '8')
-    deploy_args['workflow'] = 'deploy-rhel'
+    # if 'deploy_rhel_version' is not set, let's default to the default one
+    deploy_args['deploy_rhel_version'] = deploy_args.get(
+        'deploy_rhel_version', settings.content_host.default_rhel_version
+    )
+    deploy_args['workflow'] = settings.content_host.get(
+        f'rhel{deploy_args["deploy_rhel_version"]}'
+    ).workflow
     with Broker(**deploy_args, host_class=Satellite) as host:
         yield host

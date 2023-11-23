@@ -17,6 +17,7 @@
 :Upstream: No
 """
 from broker import Broker
+from packaging.version import Version
 import pytest
 
 from robottelo.config import settings
@@ -178,10 +179,10 @@ def verify_target_repo_on_satellite(
 @pytest.fixture
 def custom_leapp_host(upgrade_path, module_target_sat, module_sca_manifest_org, function_leapp_ak):
     """Checkout content host and register with satellite"""
-    deploy_args = {}
-    deploy_args['deploy_rhel_version'] = upgrade_path['source_version']
     with Broker(
-        workflow='deploy-rhel',
+        workflow=settings.content_host[
+            f'rhel{Version(upgrade_path["source_version"]).major}'
+        ].vm.workflow,
         host_class=ContentHost,
         deploy_rhel_version=upgrade_path['source_version'],
         deploy_flavor=settings.flavors.default,
