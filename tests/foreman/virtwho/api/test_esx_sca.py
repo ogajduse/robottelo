@@ -9,6 +9,7 @@
 :Team: Phoenix
 
 """
+
 import pytest
 
 from robottelo.config import settings

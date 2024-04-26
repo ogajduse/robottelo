@@ -234,12 +234,14 @@ def get_data_jira(jira_numbers, cached_data=None):  # pragma: no cover
             'key': issue['key'],
             'summary': issue['fields']['summary'],
             'status': issue['fields']['status']['name'],
-            'resolution': issue['fields']['resolution']['name']
-            if issue['fields']['resolution']
-            else '',
-            'fixVersions': [ver['name'] for ver in issue['fields']['fixVersions']]
-            if issue['fields']['fixVersions']
-            else [],
+            'resolution': (
+                issue['fields']['resolution']['name'] if issue['fields']['resolution'] else ''
+            ),
+            'fixVersions': (
+                [ver['name'] for ver in issue['fields']['fixVersions']]
+                if issue['fields']['fixVersions']
+                else []
+            ),
         }
         for issue in data
         if issue is not None

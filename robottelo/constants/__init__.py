@@ -1,4 +1,5 @@
 """Defines various constants"""
+
 from pathlib import Path
 
 from box import Box
@@ -2077,6 +2078,7 @@ DNF_RECOMMENDATION = (
 )
 
 EXPIRED_MANIFEST = 'expired-manifest.zip'
+
 
 # Data File Paths
 class DataFile(Box):

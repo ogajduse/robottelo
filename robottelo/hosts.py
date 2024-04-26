@@ -63,7 +63,7 @@ from robottelo.utils.installer import InstallerCommand
 POWER_OPERATIONS = {
     VmState.RUNNING: 'running',
     VmState.STOPPED: 'stopped',
-    'reboot': 'reboot'
+    'reboot': 'reboot',
     # TODO paused, suspended, shelved?
 }
 

@@ -2,6 +2,7 @@
 All the Repository classes in this module are supposed to use from sat_object.cli_factory object.
 The direct import of the repo classes in this module is prohibited !!!!!
 """
+
 import inspect
 import sys
 

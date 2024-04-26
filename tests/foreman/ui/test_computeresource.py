@@ -11,6 +11,7 @@
 :CaseImportance: High
 
 """
+
 import pytest
 from wait_for import wait_for
 
@@ -451,13 +452,15 @@ def test_positive_associate_with_custom_profile(session, rhev_data):
         cores='2',
         sockets='2',
         memory='1024 MB',
-        network_interfaces=[]
-        if 'interface' not in rhev_data
-        else [
-            dict(name='nic1', network=rhev_data['interface']),
-            dict(name='nic1', network=rhev_data['interface']),
-            dict(name='nic1', network=rhev_data['interface']),
-        ],
+        network_interfaces=(
+            []
+            if 'interface' not in rhev_data
+            else [
+                dict(name='nic1', network=rhev_data['interface']),
+                dict(name='nic1', network=rhev_data['interface']),
+                dict(name='nic1', network=rhev_data['interface']),
+            ]
+        ),
         storage=[
             dict(size='10', bootable=False, preallocate_disk=True),
             dict(size='20', bootable=True, preallocate_disk=True),

@@ -11,6 +11,7 @@
 :CaseImportance: High
 
 """
+
 # For ease of use hc refers to host-collection throughout this document
 from time import sleep, time
 

@@ -84,6 +84,7 @@ Usage::
 
             return dict(org=cls.org, repo=cls.repo}
 """
+
 import datetime
 import functools
 import hashlib
