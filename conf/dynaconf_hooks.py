@@ -26,6 +26,8 @@ def post(settings):
             )
             data = get_repos_config(settings)
             write_cache(settings_cache_path, data)
+    data.IPA = {}
+    data.IPA.hostname = 'this.is.ipv6.hostname'
     config_migrations(settings, data)
     data['dynaconf_merge'] = True
     return data
