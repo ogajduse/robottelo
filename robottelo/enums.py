@@ -4,7 +4,7 @@ This module provides standardized enumerations for various types, statuses,
 and configurations used in Robottelo tests and utilities.
 """
 
-from enum import StrEnum
+from enum import Enum, StrEnum
 
 import ruamel.yaml
 
@@ -32,6 +32,12 @@ class NetworkType(StrEnum):
     def has_ipv6(self):
         return self in (self.IPV6, self.DUALSTACK)
 
+    def __contains__(self, key):
+        """Check if key is contained in the given NetworkType."""
+        if isinstance(key, NetworkType):
+            return key == self or (self == self.DUALSTACK and key in (self.IPV4, self.IPV6))
+        return False
+
     @classmethod
     def to_yaml(cls, representer, node):
         return representer.represent_scalar('!NetworkType', node.value)
@@ -40,3 +46,8 @@ class NetworkType(StrEnum):
     def from_yaml(cls, constructor, node):
         value = constructor.construct_scalar(node)
         return cls(value)
+
+
+class IPVersion(Enum):
+    IPV4 = NetworkType.IPV4
+    IPV6 = NetworkType.IPV6
