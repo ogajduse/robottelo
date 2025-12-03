@@ -836,20 +836,260 @@ with target_sat.ui_session() as session:
 
 ### Configuration
 
-*   **Test Configuration:** The application uses multiple YAML files for configuration:
-    - `conf/*.yaml`: Feature-specific configurations
+Robottelo uses **[Dynaconf](https://www.dynaconf.com/)** - a layered configuration management system using **YAML files**, environment variables, and secret management.
 
-*   **Settings Access:** Use `robottelo.config.settings` to access configuration:
+#### Configuration Architecture
+
+**Settings File Hierarchy** (loaded in order, later sources override earlier ones):
+
+1. **Feature Configs**: `conf/*.yaml` - Feature-specific YAML settings (preloaded)
+2. **Main Settings**: `settings.yaml` - Primary YAML configuration file
+3. **Local Overrides**: `settings.local.yaml` - Local YAML customizations (gitignored)
+4. **Secrets**: `.secrets.yaml` / `.secrets_*.yaml` - Sensitive data in YAML (gitignored)
+5. **Environment Variables**: `ROBOTTELO_*` - Highest priority overrides
+6. **Vault** (optional): HashiCorp Vault for centralized secret management
+
+**Note**: Configuration files use **YAML format**, not TOML or JSON.
+
+#### Accessing Settings
+
+Use `robottelo.config.settings` to access configuration in tests and fixtures:
 
 ```python
 from robottelo.config import settings
 
 # Access Satellite URL
-sat_url = settings.server.hostname
+sat_hostname = settings.server.hostname
 
 # Access repository URLs
 repo_url = settings.repos.yum_3.url
+
+# Access nested settings
+rhel_version = settings.robottelo.rhel_source
+
+# Case-insensitive access (lowercase_read=True)
+assert settings.SERVER.hostname == settings.server.hostname
 ```
+
+#### Environment Variable Overrides
+
+Override any YAML setting using `ROBOTTELO_` prefixed environment variables.
+
+**Each nested level in YAML must be separated by double underscore (`__`) in the environment variable name.**
+
+```bash
+# Simple string values
+export ROBOTTELO_SERVER__SCHEME="https"
+export ROBOTTELO_ROBOTTELO__RHEL_SOURCE="ga"
+
+# Nested settings (double underscore between EACH level)
+# YAML: SERVER.ADMIN_USERNAME → Env: ROBOTTELO_SERVER__ADMIN_USERNAME
+export ROBOTTELO_SERVER__ADMIN_USERNAME="admin"
+export ROBOTTELO_SERVER__ADMIN_PASSWORD="secret"
+
+# Multi-level nesting (double underscore between EACH level)
+# YAML: SERVER.VERSION.RELEASE → Env: ROBOTTELO_SERVER__VERSION__RELEASE
+export ROBOTTELO_SERVER__VERSION__RELEASE="6.18.0"
+# YAML: MYFEATURE.SETTINGS.RETRY_COUNT → Env: ROBOTTELO_MYFEATURE__SETTINGS__RETRY_COUNT
+export ROBOTTELO_MYFEATURE__SETTINGS__RETRY_COUNT=3
+
+# Boolean values
+export ROBOTTELO_UI_RECORD_VIDEO=false
+export ROBOTTELO_SERVER__AUTO_CHECKIN=false
+
+# Integer values
+export ROBOTTELO_JIRA__CACHE_TTL_DAYS=7
+
+# List values (Python list syntax)
+export ROBOTTELO_ROBOTTELO__SAT_NON_GA_VERSIONS="['6.16', '6.17', '6.18']"
+export ROBOTTELO_JIRA__ISSUE_STATUS="['Testing', 'Release Pending']"
+```
+
+**Important Notes**:
+- **Nesting Rule**: Use `__` (double underscore) to separate **each** nested level
+  - `SERVER.VERSION.RELEASE` → `ROBOTTELO_SERVER__VERSION__RELEASE`
+  - `JIRA.CACHE_TTL_DAYS` → `ROBOTTELO_JIRA__CACHE_TTL_DAYS`
+- Environment variables must be **UPPERCASE**
+- Values are automatically parsed (strings, booleans, integers, lists)
+- Lists use Python syntax: `"['item1', 'item2']"`
+
+#### HashiCorp Vault Integration
+
+Robottelo supports **Vault** for centralized secret management:
+
+**Setup** (see `.env.example`):
+
+```bash
+# Enable Vault
+VAULT_ENABLED_FOR_DYNACONF=true
+VAULT_URL_FOR_DYNACONF=https://vault.example.com
+VAULT_KV_VERSION_FOR_DYNACONF=2
+
+# Authentication (choose one)
+VAULT_TOKEN_FOR_DYNACONF=your-token          # Token auth
+VAULT_ROLE_ID_FOR_DYNACONF=role-id           # AppRole auth
+VAULT_SECRET_ID_FOR_DYNACONF=secret-id
+
+# Secret location
+VAULT_MOUNT_POINT_FOR_DYNACONF=secret
+VAULT_PATH_FOR_DYNACONF=robottelo
+```
+
+**Usage in YAML files**:
+
+The following example assumes `vault_jira_api_key` to be defined in the Vault key-value storage and it assumes that it was loaded on the top level of the config.
+
+```yaml
+JIRA:
+  URL: https://issues.redhat.com
+  API_KEY: '@format {this.vault_jira_api_key}'  # Load from Vault
+  ENABLE_COMMENT: false
+```
+
+Or directly use it.
+
+```python
+from robottelo.config import settings
+settings.vault_jira_api_key
+```
+
+**Login to Vault**:
+
+```bash
+make vault-login  # Generates and sets token automatically
+vault kv get <mount_point>/<path>  # List secrets
+```
+
+#### Configuration Validation
+
+Dynaconf validators ensure required settings are present:
+
+```python
+# Validators defined in robottelo/config/validators.py
+settings.validators.register(**VALIDATORS)
+settings.validators.validate()
+
+# Ignore validation errors (for testing)
+export ROBOTTELO_ROBOTTELO__SETTINGS__IGNORE_VALIDATION_ERRORS=true
+```
+
+#### Common Configuration Patterns
+
+**Creating Custom Settings**:
+
+```yaml
+# conf/myfeature.yaml
+MYFEATURE:
+  ENABLED: true
+  TIMEOUT: 300
+  API_KEY: '@format {this.vault_myfeature_api_key}'  # Load from Vault
+  ENDPOINTS:
+    - api
+    - ui
+  SETTINGS:
+    RETRY_COUNT: 3
+    VERBOSE: false
+```
+
+**Accessing in Code**:
+
+```python
+from robottelo.config import settings
+
+if settings.myfeature.enabled:
+    timeout = settings.myfeature.timeout
+    endpoints = settings.myfeature.endpoints
+    retry = settings.myfeature.settings.retry_count
+```
+
+**CRITICAL: Add Validators for Every New Config Value**
+
+When adding ANY new configuration setting, you **MUST** add a corresponding validator in `robottelo/config/validators.py`:
+
+```python
+# robottelo/config/validators.py
+VALIDATORS = dict(
+    # ... existing validators ...
+    myfeature=[
+        Validator('myfeature.enabled', is_type_of=bool, default=False),
+        Validator('myfeature.timeout', is_type_of=int, must_exist=True),
+        Validator('myfeature.api_key', must_exist=True),
+        Validator('myfeature.endpoints', is_type_of=list, must_exist=True),
+        Validator('myfeature.settings.retry_count', gte=1, lte=10, default=3),
+        Validator('myfeature.settings.verbose', is_type_of=bool, default=False),
+    ],
+)
+```
+
+**Validator Options** (see [Dynaconf Validation Docs](https://www.dynaconf.com/validation/)):
+
+- `must_exist=True` - Field is required
+- `is_type_of=<type>` - Type validation (str, int, bool, list, dict)
+- `is_in=[...]` - Value must be in list
+- `default=<value>` - Default value if not set
+- `gte=<n>`, `lte=<n>` - Numeric range (greater/less than or equal)
+- `gt=<n>`, `lt=<n>` - Numeric range (greater/less than)
+- `len_min=<n>`, `len_max=<n>` - Length constraints
+- `startswith=<str>` - String prefix validation
+- `cast=<func>` - Transform value (e.g., `cast=str`, `cast=NetworkType`)
+- `condition=<lambda>` - Custom validation function
+- `when=Validator(...)` - Conditional validation
+
+**Combining Validators** (OR logic for optional fields):
+
+```python
+# At least ONE of these must exist
+(
+    Validator('server.ssh_key', must_exist=True)
+    | Validator('server.ssh_password', must_exist=True)
+    | Validator('server.ssh_key_string', must_exist=True)
+)
+```
+
+**Local Overrides** (`settings.local.yaml`, gitignored):
+
+By default, settings in `settings.local.yaml` **override** existing values. To **merge** with existing configuration instead, use `dynaconf_merge: true` at the file level:
+
+```yaml
+# settings.local.yaml - RECOMMENDED approach for local overrides
+---
+dynaconf_merge: true  # Merge entire file with existing config
+
+server:
+  hostnames:
+    - my-local-satellite.test
+  version:
+    rhel_version: "9"
+  network_type: ipv4
+
+robottelo:
+  settings:
+    get_fresh: false
+
+content_host:
+  attributes:
+    network_type: dualstack
+```
+
+**Merge Behavior**:
+
+- **Without** `dynaconf_merge: true` - Each top-level key **replaces** the entire section
+  - Setting `server:` would replace ALL server settings from `conf/server.yaml`
+
+- **With** `dynaconf_merge: true` - Each top-level key **merges** with existing section
+  - Setting `server.hostnames` only updates that field, keeping other `server.*` settings
+  - Nested dictionaries are deep-merged
+  - Lists are appended (use `dynaconf_merge_unique` to prevent duplicates)
+
+For more details, see [Dynaconf Merging Documentation](https://www.dynaconf.com/merging/).
+
+#### Additional Resources
+
+- **Dynaconf Documentation**: https://www.dynaconf.com/
+- **Environment Variables**: https://www.dynaconf.com/envvars/
+- **Vault Integration**: https://www.dynaconf.com/secrets/
+- **Validation**: https://www.dynaconf.com/validation/
+- **Settings Files**: https://www.dynaconf.com/settings_files/
 
 ### Test Organization
 
